@@ -34,10 +34,9 @@ homebrew_casks:
     skip_upload: '{{ if index .Env "HOMEBREW_TAP_GITHUB_TOKEN" }}false{{ else }}true{{ end }}'
     hooks:
       post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/vpn"]
-          end
+        # Бинарник не подписан Apple — снимаем карантин, иначе macOS не даст его запустить
+        install_steps: |
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/vpn"]
 
 checksum:
   name_template: checksums.txt
