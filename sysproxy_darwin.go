@@ -73,6 +73,17 @@ func clearSystemProxy() error {
 	return firstErr
 }
 
+// ourProxySet — системный HTTP-прокси уже указывает на наш порт.
+func ourProxySet(httpPort int) bool {
+	out, err := exec.Command("scutil", "--proxy").Output()
+	if err != nil {
+		return false
+	}
+	s := string(out)
+	return strings.Contains(s, "HTTPEnable : 1") && strings.Contains(s, "HTTPProxy : 127.0.0.1") &&
+		strings.Contains(s, "HTTPPort : "+strconv.Itoa(httpPort))
+}
+
 func systemProxyStatus() string {
 	out, err := exec.Command("scutil", "--proxy").Output()
 	if err != nil {

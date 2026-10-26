@@ -36,6 +36,10 @@ const help = `vpn — консольный клиент Xray для macOS
   vpn sysproxy on|off    трогать ли системный прокси macOS
   vpn env [--off]        прокси для терминала: eval "$(vpn env)"
 
+  vpn autostart on|off   сторож в фоне: поднимает VPN после перезагрузки,
+                         перезапускает xray, переключает сервер при падении
+  vpn autoswitch on|off  переключать ли сервер, если текущий не отвечает
+
   vpn setup              скачать/обновить ядро Xray
   vpn config             показать конфиг Xray
   vpn log                последние строки лога
@@ -124,6 +128,7 @@ func main() {
 		real := len(args) > 0 && (args[0] == "--real" || args[0] == "-r")
 		res := doPing(st, real)
 		printList(st, res)
+		printFailures(st, res)
 	case "best":
 		res := doPing(st, true)
 		best := -1
@@ -208,9 +213,50 @@ func main() {
 		say(string(cfg))
 	case "log":
 		say(tailLog(40))
+		if b, err := os.ReadFile(watchLogPath()); err == nil {
+			say("--- watch ---")
+			say(lastLines(string(b), 15))
+		}
+	case "watch":
+		runWatch()
+	case "autostart":
+		switch arg(0, "on или off") {
+		case "on":
+			if err := autostartOn(); err != nil {
+				die(err)
+			}
+			say("Автозапуск включён: сторож работает в фоне и стартует при входе в систему.")
+			say("Его журнал: vpn log")
+		case "off":
+			if err := autostartOff(); err != nil {
+				die(err)
+			}
+			say("Автозапуск выключен.")
+		default:
+			die(fmt.Errorf("vpn autostart on|off"))
+		}
+	case "autoswitch":
+		switch arg(0, "on или off") {
+		case "on":
+			st.NoAutoSwitch = false
+		case "off":
+			st.NoAutoSwitch = true
+		default:
+			die(fmt.Errorf("vpn autoswitch on|off"))
+		}
+		save()
+		say("Готово.")
 	default:
 		die(fmt.Errorf("неизвестная команда %q, см. vpn help", cmd))
 	}
+}
+
+func lastLines(s string, n int) string {
+	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return strings.Join(lines, "\n")
 }
 
 func selectN(st *State, s string) {
@@ -298,6 +344,37 @@ func printList(st *State, res []PingResult) {
 	}
 }
 
+func printFailures(st *State, res []PingResult) {
+	all := st.All()
+	first := true
+	for i, r := range res {
+		if r.Delay >= 0 || r.Err == nil {
+			continue
+		}
+		if first {
+			say("\nНе ответили:")
+			first = false
+		}
+		say(fmt.Sprintf("  %3d  %s — %s", i+1, all[i].Name, shortErr(r.Err)))
+	}
+}
+
+// shortErr — человеческая причина вместо длинной ошибки Go.
+func shortErr(err error) string {
+	s := err.Error()
+	switch {
+	case strings.Contains(s, "Client.Timeout"), strings.Contains(s, "timeout"), strings.Contains(s, "deadline"):
+		return "таймаут"
+	case strings.Contains(s, "connection refused"):
+		return "соединение отклонено"
+	case strings.Contains(s, "EOF"), strings.Contains(s, "reset"):
+		return "сервер оборвал соединение"
+	case strings.Contains(s, "no such host"):
+		return "домен не найден"
+	}
+	return short(s)
+}
+
 func fmtBytes(n int64) string {
 	const gb = 1 << 30
 	return fmt.Sprintf("%.1f ГБ", float64(n)/gb)
@@ -348,6 +425,14 @@ func printStatus(st *State) {
 	if l := subLine(st); l != "" {
 		say("Подписка: " + l)
 	}
+	auto := "выключен (vpn autostart on)"
+	if autostartEnabled() {
+		auto = "включён"
+		if !st.NoAutoSwitch {
+			auto += ", с автопереключением"
+		}
+	}
+	say("Автозапуск: " + auto)
 	if running && systemProxyStatus() == "выключен" && !st.NoSysProxy {
 		say("Внимание: xray работает, но системный прокси выключен — vpn on")
 	}

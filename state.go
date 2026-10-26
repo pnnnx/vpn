@@ -28,7 +28,12 @@ type State struct {
 	Mode       string    `json:"mode"`             // global | ru
 	Direct     []string  `json:"direct,omitempty"` // свои исключения
 	NoSysProxy bool      `json:"no_sys_proxy"`     // не трогать системный прокси
+
+	Enabled      bool `json:"enabled"`        // VPN должен быть включён (для vpn watch)
+	NoAutoSwitch bool `json:"no_auto_switch"` // не переключать сервер при падении
 }
+
+func (s *State) MetricsPort() int { return s.SocksPort + 2 }
 
 // All — серверы подписки + добавленные вручную.
 func (s *State) All() []Profile {

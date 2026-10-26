@@ -164,11 +164,15 @@ func portOpen(port int) bool {
 }
 
 // vpnOn / vpnOff — общая логика для CLI и TUI.
+// Сохраняют желаемое состояние, чтобы vpn watch знал, что делать после перезагрузки.
 func vpnOn(st *State, out func(string)) error {
 	if err := startXray(st, out); err != nil {
 		return err
 	}
-	if !st.NoSysProxy {
+	st.Enabled = true
+	st.Save()
+	// Если прокси уже наш (например, после перезагрузки) — не трогаем, лишний раз не спрашиваем пароль.
+	if !st.NoSysProxy && !ourProxySet(st.HTTPPort) {
 		if err := setSystemProxy(st.SocksPort, st.HTTPPort); err != nil {
 			return fmt.Errorf("xray запущен, но системный прокси не включился: %w", err)
 		}
@@ -177,6 +181,8 @@ func vpnOn(st *State, out func(string)) error {
 }
 
 func vpnOff(st *State) error {
+	st.Enabled = false
+	st.Save()
 	err := clearSystemProxy() // снимаем всегда, даже если xray уже мёртв
 	stopXray()
 	return err

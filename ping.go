@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -42,6 +43,10 @@ func tcpPing(profiles []Profile) []PingResult {
 	}
 	wg.Wait()
 	return res
+}
+
+func dialTimeout(addr string, d time.Duration) (net.Conn, error) {
+	return net.DialTimeout("tcp", addr, d)
 }
 
 func freePorts(n int) ([]int, error) {
@@ -97,7 +102,7 @@ func realPing(st *State, profiles []Profile, out func(string)) ([]PingResult, er
 	}
 
 	res := make([]PingResult, len(profiles))
-	sem := make(chan struct{}, 16)
+	sem := make(chan struct{}, 6) // не забиваем канал — иначе цифры врут
 	var wg sync.WaitGroup
 	for i := range profiles {
 		if !ok[i] {
@@ -109,7 +114,7 @@ func realPing(st *State, profiles []Profile, out func(string)) ([]PingResult, er
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			d, err := httpDelay(fmt.Sprintf("socks5://127.0.0.1:%d", ports[i]), 6*time.Second)
+			d, err := httpDelay(fmt.Sprintf("socks5://127.0.0.1:%d", ports[i]), 8*time.Second)
 			if err != nil {
 				res[i] = PingResult{Delay: -1, Err: err}
 			} else {
@@ -121,22 +126,34 @@ func realPing(st *State, profiles []Profile, out func(string)) ([]PingResult, er
 	return res, nil
 }
 
+// httpDelay: первый запрос прогревает туннель (Reality + TLS до сайта),
+// второй идёт по уже открытому соединению — это и есть реальная задержка.
 func httpDelay(proxy string, timeout time.Duration) (time.Duration, error) {
 	pu, _ := url.Parse(proxy)
-	cl := &http.Client{
-		Transport: &http.Transport{Proxy: http.ProxyURL(pu), DisableKeepAlives: true},
-		Timeout:   timeout,
+	tr := &http.Transport{Proxy: http.ProxyURL(pu), MaxIdleConnsPerHost: 1}
+	defer tr.CloseIdleConnections()
+	cl := &http.Client{Transport: tr, Timeout: timeout}
+	get := func() (time.Duration, error) {
+		t := time.Now()
+		resp, err := cl.Get(testURL)
+		if err != nil {
+			return 0, err
+		}
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != 204 && resp.StatusCode != 200 {
+			return 0, fmt.Errorf("ответ %d", resp.StatusCode)
+		}
+		return time.Since(t), nil
 	}
-	t := time.Now()
-	resp, err := cl.Get(testURL)
+	cold, err := get()
 	if err != nil {
 		return 0, err
 	}
-	resp.Body.Close()
-	if resp.StatusCode != 204 && resp.StatusCode != 200 {
-		return 0, fmt.Errorf("ответ %d", resp.StatusCode)
+	if warm, err := get(); err == nil {
+		return warm, nil
 	}
-	return time.Since(t), nil
+	return cold, nil
 }
 
 func fmtDelay(r PingResult) string {
