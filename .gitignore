@@ -1,0 +1,7 @@
+/vpn
+/dist/
+*.log
+state.json
+config.json
+.DS_Store
+/.xray-test/
