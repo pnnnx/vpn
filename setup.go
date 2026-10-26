@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 func xrayAsset() (string, error) {
@@ -34,7 +35,10 @@ func setupXray(st *State, out func(string)) error {
 		return err
 	}
 	base := "https://github.com/XTLS/Xray-core/releases/latest/download/" + asset
-	out("Скачиваю " + asset + "…")
+	out("Скачиваю " + asset + "… (~15 МБ, может занять пару минут)")
+	old := fetchTimeout
+	fetchTimeout = 10 * time.Minute
+	defer func() { fetchTimeout = old }()
 	data, _, err := fetchWithFallback(st, base)
 	if err != nil {
 		return fmt.Errorf("не удалось скачать Xray: %w", err)

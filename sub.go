@@ -13,13 +13,16 @@ import (
 // Многие панели (Marzban, Remnawave, 3x-ui) отдают список ссылок только «знакомым» клиентам.
 const subUserAgent = "v2rayN/7.10.0"
 
+// fetchTimeout — 20 с для подписки; setup увеличивает его для скачивания ядра.
+var fetchTimeout = 20 * time.Second
+
 func fetchURL(rawURL, proxy string) ([]byte, http.Header, error) {
 	tr := &http.Transport{Proxy: nil}
 	if proxy != "" {
 		pu, _ := url.Parse(proxy)
 		tr.Proxy = http.ProxyURL(pu)
 	}
-	cl := &http.Client{Transport: tr, Timeout: 20 * time.Second}
+	cl := &http.Client{Transport: tr, Timeout: fetchTimeout}
 	req, err := http.NewRequest("GET", rawURL, nil)
 	if err != nil {
 		return nil, nil, err
