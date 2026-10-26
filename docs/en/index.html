@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vpn — terminal Xray &amp; VLESS Reality client for macOS with a TUI</title>
+<meta name="description" content="Free open-source terminal VPN client for macOS built on Xray-core: VLESS Reality, XHTTP, gRPC, VMess, Trojan, Shadowsocks, Marzban and Remnawave subscriptions, a TUI and automatic failover. SSH always bypasses the VPN.">
+<meta name="keywords" content="xray client macos, vless reality client, v2ray client mac, terminal vpn client, tui vpn client, xray cli, vless cli, marzban subscription client, remnawave client, ssh not working with vpn, v2rayn alternative mac">
+<meta name="author" content="pnnnx">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://pnnnx.github.io/vpn/en/">
+<link rel="alternate" hreflang="ru" href="https://pnnnx.github.io/vpn/">
+<link rel="alternate" hreflang="en" href="https://pnnnx.github.io/vpn/en/">
+<link rel="alternate" hreflang="x-default" href="https://pnnnx.github.io/vpn/en/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="vpn">
+<meta property="og:title" content="vpn — terminal Xray &amp; VLESS Reality client for macOS with a TUI">
+<meta property="og:description" content="Free open-source terminal VPN client for macOS built on Xray-core: VLESS Reality, XHTTP, gRPC, VMess, Trojan, Shadowsocks, Marzban and Remnawave subscriptions, a TUI and automatic failover. SSH always bypasses the VPN.">
+<meta property="og:url" content="https://pnnnx.github.io/vpn/en/">
+<meta property="og:image" content="https://pnnnx.github.io/vpn/og.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="vpn — terminal Xray &amp; VLESS Reality client for macOS with a TUI">
+<meta name="twitter:description" content="Free open-source terminal VPN client for macOS built on Xray-core: VLESS Reality, XHTTP, gRPC, VMess, Trojan, Shadowsocks, Marzban and Remnawave subscriptions, a TUI and automatic failover. SSH always bypasses the VPN.">
+<meta name="twitter:image" content="https://pnnnx.github.io/vpn/og.png">
+<meta name="theme-color" content="#0d1117">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 172 200'%3E%3Cpath d='M86 0 168 30v62c0 52-35 92-82 108C39 184 4 144 4 92V30z' fill='%233fb950'/%3E%3C/svg%3E">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "vpn", "alternateName": "pnnnx/vpn", "description": "Free open-source terminal VPN client for macOS built on Xray-core: VLESS Reality, XHTTP, gRPC, VMess, Trojan, Shadowsocks, Marzban and Remnawave subscriptions, a TUI and automatic failover. SSH always bypasses the VPN.", "applicationCategory": "NetworkingApplication", "applicationSubCategory": "VPN / Proxy client", "operatingSystem": "macOS", "softwareVersion": "0.2.0", "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "downloadUrl": "https://github.com/pnnnx/vpn/releases/latest", "installUrl": "https://github.com/pnnnx/vpn#readme", "codeRepository": "https://github.com/pnnnx/vpn", "programmingLanguage": "Go", "author": {"@type": "Person", "name": "pnnnx", "url": "https://github.com/pnnnx"}, "image": "https://pnnnx.github.io/vpn/og.png", "url": "https://pnnnx.github.io/vpn/en/", "inLanguage": "en", "keywords": "xray client macos, vless reality client, v2ray client mac, terminal vpn client, tui vpn client, xray cli, vless cli, marzban subscription client, remnawave client, ssh not working with vpn, v2rayn alternative mac"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Why does SSH stop working when a VPN is on?", "acceptedAnswer": {"@type": "Answer", "text": "Many clients run in TUN mode and send all traffic through the VPN, and VPN servers often block outbound port 22. vpn runs as a local proxy and always sends SSH and your LAN direct."}}, {"@type": "Question", "name": "How is vpn different from v2rayN, Hiddify or Nekoray?", "acceptedAnswer": {"@type": "Answer", "text": "It is a small terminal client with no GUI: a single binary, a TUI, scriptable commands and launchd automation."}}, {"@type": "Question", "name": "Which subscriptions are supported?", "acceptedAnswer": {"@type": "Answer", "text": "Marzban, Remnawave, 3x-ui and other panels, as base64 or plain lists of vless://, vmess://, trojan:// and ss:// links."}}, {"@type": "Question", "name": "Is it free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, it is open source under the MIT license. You bring your own VPN server or subscription."}}]}</script>
+<style>
+:root{--bg:#0d1117;--fg:#e6edf3;--dim:#8b949e;--line:#30363d;--card:#161b22;--acc:#3fb950;--blue:#58a6ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+main{max-width:960px;margin:0 auto;padding:40px 20px 64px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:36px}
+header a{color:var(--dim);text-decoration:none;margin-left:18px}header a:hover{color:var(--fg)}
+.logo{font:700 22px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--fg)!important;margin:0!important}
+h1{font-size:clamp(30px,5vw,46px);line-height:1.15;margin:0 0 14px;letter-spacing:-.02em}
+h1 em{font-style:normal;color:var(--acc)}
+.lead{color:var(--dim);font-size:19px;max-width:720px}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin:26px 0 34px}
+.btn{padding:11px 18px;border-radius:10px;text-decoration:none;font-weight:600;border:1px solid var(--line);color:var(--fg)}
+.btn.p{background:var(--acc);border-color:var(--acc);color:#04140a}
+pre{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;margin:10px 0 22px}
+code{font:14px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+img.shot{width:100%;height:auto;border-radius:12px;margin:8px 0 40px}
+h2{font-size:24px;margin:44px 0 12px}
+ul.f{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+ul.f li{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+ul.f b{display:block;margin-bottom:4px}ul.f span{color:var(--dim)}
+details{border-bottom:1px solid var(--line);padding:12px 0}summary{cursor:pointer;font-weight:600}details p{color:var(--dim);margin:8px 0 0}
+footer{margin-top:56px;color:var(--dim);font-size:14px;border-top:1px solid var(--line);padding-top:20px}footer a{color:var(--blue)}
+</style>
+</head>
+<body>
+<main>
+<header><a class="logo" href="https://pnnnx.github.io/vpn/en/">▸ vpn</a><nav><a href="https://github.com/pnnnx/vpn">GitHub</a><a href="https://github.com/pnnnx/vpn/releases/latest">Download</a><a href="../" hreflang="ru">Русский</a></nav></header>
+<h1>A terminal <em>Xray / VLESS Reality</em> client for macOS</h1>
+<p class="lead">Type vpn, pick a server, press Enter. Provider subscriptions, real latency tests, failover and a watcher that survives reboots. And ssh to your own servers keeps working: SSH and your LAN always bypass the VPN.</p>
+<div class="cta"><a class="btn p" href="#install">Install</a><a class="btn" href="https://github.com/pnnnx/vpn">★ GitHub</a></div>
+<img class="shot" src="../preview.svg" width="904" height="366" alt="vpn — terminal Xray &amp; VLESS Reality client for macOS with a TUI">
+<h2>Features</h2>
+<ul class="f"><li><b>SSH bypasses the VPN</b><span>Port 22, private networks and your exclusions always go direct.</span></li><li><b>TUI and CLI</b><span>Terminal UI with latency, live speed and logs; vpn on / off for scripts.</span></li><li><b>Subscriptions</b><span>Marzban, Remnawave, 3x-ui: servers, traffic and expiry.</span></li><li><b>Protocols</b><span>VLESS (Reality, XHTTP, gRPC, WS), VMess, Trojan, Shadowsocks.</span></li><li><b>Self-healing</b><span>Restores the VPN after reboot and fails over when a server dies.</span></li><li><b>TUN mode</b><span>Experimental: route every app through the VPN.</span></li></ul>
+<div id="install"><h2>Install</h2><pre><code>brew install --cask pnnnx/tap/vpn</code></pre><h2>Quick start</h2><pre><code>vpn sub &#x27;https://your-subscription-url&#x27;
+vpn                 # P — ping, b — fastest, Enter — connect
+vpn autostart on    # autostart and failover</code></pre></div>
+<h2>FAQ</h2>
+<details><summary>Why does SSH stop working when a VPN is on?</summary><p>Many clients run in TUN mode and send all traffic through the VPN, and VPN servers often block outbound port 22. vpn runs as a local proxy and always sends SSH and your LAN direct.</p></details><details><summary>How is vpn different from v2rayN, Hiddify or Nekoray?</summary><p>It is a small terminal client with no GUI: a single binary, a TUI, scriptable commands and launchd automation.</p></details><details><summary>Which subscriptions are supported?</summary><p>Marzban, Remnawave, 3x-ui and other panels, as base64 or plain lists of vless://, vmess://, trojan:// and ss:// links.</p></details><details><summary>Is it free?</summary><p>Yes, it is open source under the MIT license. You bring your own VPN server or subscription.</p></details>
+<footer>MIT © <a href="https://github.com/pnnnx">pnnnx</a> · Built on <a href="https://github.com/XTLS/Xray-core">Xray-core</a> · <a href="https://github.com/pnnnx/vpn">github.com/pnnnx/vpn</a></footer>
+</main>
+</body>
+</html>

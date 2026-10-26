@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url><loc>https://pnnnx.github.io/vpn/</loc><changefreq>weekly</changefreq><priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pnnnx.github.io/vpn/en/"/><xhtml:link rel="alternate" hreflang="ru" href="https://pnnnx.github.io/vpn/"/></url>
+  <url><loc>https://pnnnx.github.io/vpn/en/</loc><changefreq>weekly</changefreq><priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://pnnnx.github.io/vpn/"/><xhtml:link rel="alternate" hreflang="en" href="https://pnnnx.github.io/vpn/en/"/></url>
+</urlset>

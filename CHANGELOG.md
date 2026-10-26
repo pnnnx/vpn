@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-10-26
+
+### Добавлено
+- Экспериментальный TUN-режим: `vpn tun on`, затем `sudo vpn on`. Весь IPv4-трафик системы идёт через VPN, SSH и локальные сети — по-прежнему напрямую.
+- Автообновление подписки раз в сутки (сторож и запуск TUI), `vpn autoupdate on|off`. Если у текущего сервера сменились параметры — переподключение.
+- Английский интерфейс: язык берётся из macOS, `vpn lang ru|en|auto`, `VPN_LANG`.
+- Сайт проекта на GitHub Pages с SEO-разметкой (schema.org, Open Graph, sitemap).
+
+### Исправлено
+- Homebrew cask: снятие карантина переведено на новый формат GoReleaser (`postflight_steps`).
+
 ## [0.2.0] — 2026-10-26
 
 ### Добавлено
@@ -29,6 +40,7 @@
 - Системный прокси macOS через `networksetup`.
 - Автоустановка Xray-core с проверкой SHA-256.
 
-[Unreleased]: https://github.com/pnnnx/vpn/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/pnnnx/vpn/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/pnnnx/vpn/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/pnnnx/vpn/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/pnnnx/vpn/releases/tag/v0.1.0

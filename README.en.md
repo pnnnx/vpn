@@ -20,6 +20,7 @@
   <a href="#-quick-start">Quick start</a> ·
   <a href="#️-keys">Keys</a> ·
   <a href="#-how-it-works">How it works</a> ·
+  <a href="https://pnnnx.github.io/vpn/en/">Website</a> ·
   <a href="README.md">Русский</a>
 </p>
 
@@ -28,7 +29,7 @@
 </p>
 
 > [!NOTE]
-> The interface is currently in Russian. An English UI is on the roadmap, and contributions are welcome.
+> The interface follows your macOS language (Russian or English). Force it with `vpn lang en`.
 
 ## 🤔 Why
 
@@ -42,7 +43,8 @@ Big VLESS clients often run in TUN mode and send **all** traffic through the VPN
 |---|---|
 | 🛡 **SSH bypasses the VPN** | Port 22, private networks and localhost always go direct, plus your own domain, IP and CIDR exclusions |
 | 🖥 **TUI and CLI** | Bubble Tea UI with colored latency, live ↑/↓ speed, log and exclusions screens; `vpn on`/`off`/`status` for scripts |
-| 🔗 **Subscriptions** | Marzban, Remnawave, 3x-ui and others, with remaining traffic and expiry date |
+| 🔗 **Subscriptions** | Marzban, Remnawave, 3x-ui and others; updated daily, with remaining traffic and expiry date |
+| 🧪 **TUN mode** | Experimental: route every app through the VPN (`vpn tun on`, then `sudo vpn on`) |
 | 🔐 **Protocols** | VLESS (TCP, WS, gRPC, XHTTP, HTTPUpgrade; TLS and **Reality**), VMess, Trojan, Shadowsocks |
 | 🔁 **Self-healing** | A launchd watcher brings the VPN back after a reboot, restarts a crashed xray and fails over to the fastest server |
 | ⚡ **Real latency** | A request through every server, not a TCP connect; `b` jumps to the fastest |
@@ -89,7 +91,7 @@ vpn autostart on                          # 3. optional: autostart and failover
 <tr><td><kbd>u</kbd></td><td>update subscription</td><td><kbd>q</kbd></td><td>quit (the VPN keeps running)</td></tr>
 </table>
 
-Commands: `on [N]`, `off`, `toggle`, `status`, `sub <url>`, `update`, `add <link>`, `list`, `use N`, `ping [--real]`, `best`, `test`, `mode global|ru`, `direct add|rm|list`, `autostart on|off`, `autoswitch on|off`, `sysproxy on|off`, `env [--off]`, `setup`, `config`, `log`, `version`.
+Commands: `on [N]`, `off`, `toggle`, `status`, `sub <url>`, `update`, `add <link>`, `list`, `use N`, `ping [--real]`, `best`, `test`, `mode global|ru`, `direct add|rm|list`, `autostart on|off`, `autoswitch on|off`, `sysproxy on|off`, `tun on|off`, `autoupdate on|off`, `lang ru|en|auto`, `env [--off]`, `setup`, `config`, `log`, `version`.
 
 ## 🧭 How it works
 
