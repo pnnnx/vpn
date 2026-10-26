@@ -101,7 +101,9 @@ func startXray(st *State, out func(string)) error {
 	}
 
 	if running, _ := isRunning(); running {
-		stopXray()
+		if err := stopXray(); err != nil {
+			return err
+		}
 	}
 	for _, port := range []int{st.SocksPort, st.HTTPPort} {
 		if portOpen(port) {
@@ -140,10 +142,14 @@ func startXray(st *State, out func(string)) error {
 	return fmt.Errorf("xray не запустился. Лог:\n%s", tailLog(15))
 }
 
-func stopXray() {
+func stopXray() error {
 	pid := readPID()
 	if isXray(pid) {
-		syscall.Kill(pid, syscall.SIGTERM)
+		if err := syscall.Kill(pid, syscall.SIGTERM); err == syscall.EPERM {
+			// xray запущен через sudo (TUN) — обычный пользователь его не остановит
+			return fmt.Errorf("%s", L("xray запущен от root (TUN): выключи через sudo vpn off",
+				"xray runs as root (TUN): stop it with sudo vpn off"))
+		}
 		for i := 0; i < 20 && isXray(pid); i++ {
 			time.Sleep(100 * time.Millisecond)
 		}
@@ -152,6 +158,7 @@ func stopXray() {
 		}
 	}
 	os.Remove(pidPath())
+	return nil
 }
 
 func portOpen(port int) bool {
@@ -166,11 +173,22 @@ func portOpen(port int) bool {
 // vpnOn / vpnOff — общая логика для CLI и TUI.
 // Сохраняют желаемое состояние, чтобы vpn watch знал, что делать после перезагрузки.
 func vpnOn(st *State, out func(string)) error {
+	if st.TUN && os.Geteuid() != 0 {
+		return fmt.Errorf("%s", L("TUN-режиму нужен root: запусти sudo vpn on (или выключи: vpn tun off)",
+			"TUN mode needs root: run sudo vpn on (or disable it: vpn tun off)"))
+	}
+	defer fixOwner()
 	if err := startXray(st, out); err != nil {
 		return err
 	}
 	st.Enabled = true
 	st.Save()
+	if st.TUN { // весь трафик и так идёт через TUN — системный прокси не нужен
+		if ourProxySet(st.HTTPPort) {
+			clearSystemProxy()
+		}
+		return nil
+	}
 	// Если прокси уже наш (например, после перезагрузки) — не трогаем, лишний раз не спрашиваем пароль.
 	if !st.NoSysProxy && !ourProxySet(st.HTTPPort) {
 		if err := setSystemProxy(st.SocksPort, st.HTTPPort); err != nil {
@@ -181,9 +199,10 @@ func vpnOn(st *State, out func(string)) error {
 }
 
 func vpnOff(st *State) error {
+	if err := stopXray(); err != nil {
+		return err
+	}
 	st.Enabled = false
 	st.Save()
-	err := clearSystemProxy() // снимаем всегда, даже если xray уже мёртв
-	stopXray()
-	return err
+	return clearSystemProxy() // снимаем всегда, даже если xray уже мёртв
 }

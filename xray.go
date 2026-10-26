@@ -260,6 +260,20 @@ func buildConfig(st *State, p Profile, hasGeo bool) ([]byte, error) {
 		"policy":  obj{"system": obj{"statsOutboundUplink": true, "statsOutboundDownlink": true}},
 		"metrics": obj{"tag": "metrics", "listen": fmt.Sprintf("127.0.0.1:%d", st.MetricsPort())},
 	}
+	if st.TUN {
+		// Экспериментально: весь IPv4-трафик системы через TUN. Xray сам прописывает маршрут
+		// и привязывает свои соединения к физическому интерфейсу, чтобы не было петли.
+		// Правила выше (SSH, локальные сети, исключения) работают и тут.
+		cfg["inbounds"] = append(cfg["inbounds"].([]obj), obj{
+			"tag": "tun", "protocol": "tun",
+			"settings": obj{
+				"mtu":                    1500,
+				"autoSystemRoutingTable": []string{"0.0.0.0/0"},
+				"autoOutboundsInterface": "auto",
+			},
+			"sniffing": sniffing(),
+		})
+	}
 	return json.MarshalIndent(cfg, "", "  ")
 }
 

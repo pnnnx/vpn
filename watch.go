@@ -39,12 +39,25 @@ func runWatch() {
 			wlog("не читается состояние: %v", err)
 			continue
 		}
+		if subUpdateDue(st) {
+			if msg, err := autoUpdateSub(st); err != nil {
+				wlog("автообновление подписки не удалось: %v", err)
+			} else {
+				wlog("%s", msg)
+			}
+		}
 		running, _ := isRunning()
 		if !st.Enabled {
 			fails = 0
 			if first && !running && ourProxySet(st.HTTPPort) {
 				clearSystemProxy()
 				wlog("VPN выключен, а системный прокси остался — снял")
+			}
+			continue
+		}
+		if !running && st.TUN && os.Geteuid() != 0 {
+			if first {
+				wlog("TUN-режим: сторож не может поднять VPN без root — запусти sudo vpn on")
 			}
 			continue
 		}

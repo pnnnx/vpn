@@ -104,6 +104,34 @@ func parseSubInfo(h http.Header) *SubInfo {
 	return info
 }
 
+const subAutoUpdateEvery = 24 * time.Hour
+
+func subUpdateDue(st *State) bool {
+	return st.SubURL != "" && !st.NoSubAutoUpdate && time.Since(st.UpdatedAt) > subAutoUpdateEvery
+}
+
+// autoUpdateSub — обновление раз в сутки (из сторожа и при запуске TUI).
+// Если у текущего сервера поменялись параметры, а VPN включён — переподключается.
+func autoUpdateSub(st *State) (string, error) {
+	before, _ := st.Current()
+	n, _, err := updateSub(st)
+	if err != nil {
+		st.UpdatedAt = time.Now().Add(-subAutoUpdateEvery + time.Hour) // повторим через час
+		st.Save()
+		return "", err
+	}
+	st.Save()
+	after, _ := st.Current()
+	msg := fmt.Sprintf(L("подписка обновлена: %d серверов", "subscription updated: %d servers"), n)
+	if running, _ := isRunning(); running && before.Raw != after.Raw {
+		if err := vpnOn(st, func(string) {}); err != nil {
+			return msg, err
+		}
+		msg += L(", переподключился", ", reconnected")
+	}
+	return msg, nil
+}
+
 func updateSub(st *State) (int, []string, error) {
 	if st.SubURL == "" {
 		return 0, nil, fmt.Errorf("подписка не задана: vpn sub <url>")

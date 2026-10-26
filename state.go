@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -31,6 +33,10 @@ type State struct {
 
 	Enabled      bool `json:"enabled"`        // VPN должен быть включён (для vpn watch)
 	NoAutoSwitch bool `json:"no_auto_switch"` // не переключать сервер при падении
+
+	NoSubAutoUpdate bool   `json:"no_sub_auto_update"` // не обновлять подписку раз в сутки
+	Lang            string `json:"lang,omitempty"`     // ru | en | "" — как в системе
+	TUN             bool   `json:"tun"`                // экспериментальный TUN-режим (нужен root)
 }
 
 func (s *State) MetricsPort() int { return s.SocksPort + 2 }
@@ -55,6 +61,12 @@ func homeDir() string {
 		return d
 	}
 	h, _ := os.UserHomeDir()
+	// sudo vpn on (TUN): данные остаются в домашней папке пользователя, а не root.
+	if os.Geteuid() == 0 && os.Getenv("SUDO_USER") != "" {
+		if u, err := user.Lookup(os.Getenv("SUDO_USER")); err == nil {
+			h = u.HomeDir
+		}
+	}
 	return filepath.Join(h, ".config", "vpn")
 }
 
@@ -84,6 +96,24 @@ func loadState() (*State, error) {
 	return st, nil
 }
 
+// fixOwner: после sudo возвращаем файлы пользователю, иначе без sudo их будет не изменить.
+func fixOwner() {
+	if os.Geteuid() != 0 {
+		return
+	}
+	uid, err1 := strconv.Atoi(os.Getenv("SUDO_UID"))
+	gid, err2 := strconv.Atoi(os.Getenv("SUDO_GID"))
+	if err1 != nil || err2 != nil {
+		return
+	}
+	filepath.Walk(homeDir(), func(p string, _ os.FileInfo, err error) error {
+		if err == nil {
+			os.Lchown(p, uid, gid)
+		}
+		return nil
+	})
+}
+
 func (s *State) Save() error {
 	if err := os.MkdirAll(homeDir(), 0o700); err != nil {
 		return err
@@ -93,5 +123,7 @@ func (s *State) Save() error {
 	if err := os.WriteFile(tmp, data, 0o600); err != nil { // там ключи — только владельцу
 		return err
 	}
-	return os.Rename(tmp, statePath())
+	err := os.Rename(tmp, statePath())
+	fixOwner()
+	return err
 }

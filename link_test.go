@@ -161,7 +161,7 @@ func TestXrayAcceptsConfigs(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			st := &State{SocksPort: 10808, HTTPPort: 10809, Mode: mode, Direct: []string{"myserver.com", "1.2.3.4"}}
+			st := &State{SocksPort: 10808, HTTPPort: 10809, Mode: mode, Direct: []string{"myserver.com", "1.2.3.4"}, TUN: mode == "ru"}
 			cfg, err := buildConfig(st, p, true)
 			if err != nil {
 				t.Fatal(err)
