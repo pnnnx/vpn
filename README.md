@@ -195,15 +195,12 @@ vpn autostart on                       # 3. (по желанию) автозап
 
 ```mermaid
 flowchart LR
-    U["vpn<br/>CLI · TUI"] -- "config.json" --> X["xray-core<br/>SOCKS :10808 · HTTP :10809"]
-    W["vpn watch<br/>launchd"] -. "перезапуск ·<br/>переключение" .-> X
-    A["Браузеры<br/>и приложения"] -- "системный прокси" --> X
-    X -- "VLESS · Reality" --> S[("VPN-сервер")]
+    U["vpn: CLI и TUI"] -->|config.json| X["xray-core: SOCKS 10808, HTTP 10809"]
+    W["vpn watch (launchd)"] -.->|перезапуск, переключение| X
+    A["Браузеры и приложения"] -->|системный прокси| X
+    X -->|VLESS Reality| S[("VPN-сервер")]
     S --> I(("Интернет"))
-    T["ssh · git@ ·<br/>локальная сеть"] -- "напрямую" --> I
-
-    style X fill:#0d1117,stroke:#3fb950,color:#e6edf3
-    style T fill:#0d1117,stroke:#58a6ff,color:#e6edf3
+    T["ssh, git по ssh, локальная сеть"] -->|напрямую| I
 ```
 
 - Протоколы `vpn` сам не реализует: криптография и транспорт — это Xray-core. `vpn` собирает для него конфиг и управляет процессом.

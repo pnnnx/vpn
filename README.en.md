@@ -97,15 +97,12 @@ Commands: `on [N]`, `off`, `toggle`, `status`, `sub <url>`, `update`, `add <link
 
 ```mermaid
 flowchart LR
-    U["vpn<br/>CLI · TUI"] -- "config.json" --> X["xray-core<br/>SOCKS :10808 · HTTP :10809"]
-    W["vpn watch<br/>launchd"] -. "restart ·<br/>failover" .-> X
-    A["Browsers<br/>and apps"] -- "system proxy" --> X
-    X -- "VLESS · Reality" --> S[("VPN server")]
+    U["vpn: CLI and TUI"] -->|config.json| X["xray-core: SOCKS 10808, HTTP 10809"]
+    W["vpn watch (launchd)"] -.->|restart, failover| X
+    A["Browsers and apps"] -->|system proxy| X
+    X -->|VLESS Reality| S[("VPN server")]
     S --> I(("Internet"))
-    T["ssh · git@ ·<br/>LAN"] -- "direct" --> I
-
-    style X fill:#0d1117,stroke:#3fb950,color:#e6edf3
-    style T fill:#0d1117,stroke:#58a6ff,color:#e6edf3
+    T["ssh, git over ssh, LAN"] -->|direct| I
 ```
 
 Terminal `ssh` ignores the system proxy. On top of that, the first Xray routing rule sends port 22 and all private ranges to `direct`, so SSH stays direct even when traffic is forced through Xray. State lives in `~/.config/vpn/` (`state.json` is mode `0600` because it contains keys).
