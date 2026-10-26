@@ -1,0 +1,31 @@
+name: Ошибка
+description: Что-то работает не так
+labels: [bug]
+body:
+  - type: checkboxes
+    attributes:
+      label: Перед отправкой
+      options:
+        - label: Я удалил из текста UUID, ключи, адреса серверов и URL подписки
+          required: true
+  - type: textarea
+    attributes:
+      label: Что произошло
+      description: Что делал, что ожидал, что получил
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Как воспроизвести
+      placeholder: |
+        1. vpn sub …
+        2. vpn on
+        3. …
+  - type: textarea
+    attributes:
+      label: Вывод vpn version, vpn status и vpn log
+      render: text
+  - type: input
+    attributes:
+      label: Версия macOS и чип
+      placeholder: macOS 26.1, Apple M2

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Уязвимость
+    url: https://github.com/pnnnx/vpn/security/advisories/new
+    about: Сообщить приватно, не в публичном issue

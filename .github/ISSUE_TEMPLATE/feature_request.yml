@@ -1,0 +1,13 @@
+name: Идея
+description: Предложить новую возможность
+labels: [enhancement]
+body:
+  - type: textarea
+    attributes:
+      label: Какую задачу это решает
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Как это могло бы выглядеть
+      description: Команда, клавиша в TUI, пример вывода
