@@ -255,6 +255,10 @@ func buildConfig(st *State, p Profile, hasGeo bool) ([]byte, error) {
 			{"tag": "block", "protocol": "blackhole"},
 		},
 		"routing": obj{"domainStrategy": "AsIs", "rules": routingRules(st, hasGeo)},
+		// Счётчики трафика для TUI: http://127.0.0.1:<MetricsPort>/debug/vars
+		"stats":   obj{},
+		"policy":  obj{"system": obj{"statsOutboundUplink": true, "statsOutboundDownlink": true}},
+		"metrics": obj{"tag": "metrics", "listen": fmt.Sprintf("127.0.0.1:%d", st.MetricsPort())},
 	}
 	return json.MarshalIndent(cfg, "", "  ")
 }
