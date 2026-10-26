@@ -44,6 +44,8 @@ GUI clients for VLESS are heavy. Many of them run in TUN mode and send **all** t
 - ⚡ **Real latency test:** a request through every server in parallel, not just a TCP connect.
 - 🧭 **Routing:** `global` or `ru` mode (Russian sites go direct), plus custom domain, IP and CIDR exclusions.
 - 🛡 **SSH always bypasses the VPN:** port 22 and private networks go direct.
+- 🔁 **Autostart and failover:** a background watcher (launchd) brings the VPN back after a reboot, restarts a crashed xray and switches to the fastest server when the current one stops responding.
+- 📈 **Live ↑/↓ speed** and session traffic in the TUI.
 - 🍎 **macOS system proxy** is toggled automatically; `vpn env` covers terminal tools.
 - 📦 **Self-installing core:** downloads the latest Xray-core and verifies its SHA-256.
 - 🪶 A single binary with no daemon and no GUI. The VPN keeps running after you close the terminal.
@@ -55,6 +57,12 @@ GUI clients for VLESS are heavy. Many of them run in TUN mode and send **all** t
 ```sh
 mkdir -p ~/.local/bin
 curl -fsSL https://github.com/pnnnx/vpn/releases/latest/download/vpn_darwin_arm64.tar.gz | tar xz -C ~/.local/bin vpn
+```
+
+**With Homebrew:**
+
+```sh
+brew install --cask pnnnx/tap/vpn
 ```
 
 **With Go** 1.24+:
@@ -87,12 +95,15 @@ vpn          # TUI: P — real ping, b — fastest, Enter — connect
 | `b` | jump to the fastest server |
 | `u` | update the subscription |
 | `m` | switch mode `global` ↔ `ru` |
+| `d` | exclusions that bypass the VPN (`a` add, `x` remove) |
+| `i` | server details (secrets masked) |
+| `l` | xray and watcher log |
 | `s` | set the subscription URL |
 | `q` | quit (the VPN keeps running) |
 
 ## Commands
 
-`vpn on [N]`, `off`, `toggle`, `status`, `sub <url>`, `update`, `add <link>`, `list`, `use N`, `ping [--real]`, `best`, `test`, `mode global|ru`, `direct add|rm|list <domain|ip|cidr>`, `sysproxy on|off`, `env [--off]`, `setup`, `config`, `log`, `version`. Run `vpn help` for details.
+`vpn on [N]`, `off`, `toggle`, `status`, `autostart on|off`, `autoswitch on|off`, `sub <url>`, `update`, `add <link>`, `list`, `use N`, `ping [--real]`, `best`, `test`, `mode global|ru`, `direct add|rm|list <domain|ip|cidr>`, `sysproxy on|off`, `env [--off]`, `setup`, `config`, `log`, `version`. Run `vpn help` for details.
 
 ## How it works
 

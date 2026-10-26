@@ -19,6 +19,26 @@ archives:
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
     files: [README.md, README.en.md, LICENSE, CHANGELOG.md]
 
+homebrew_casks:
+  - name: vpn
+    binaries: [vpn]
+    homepage: https://github.com/pnnnx/vpn
+    description: "Консольный Xray-клиент для macOS: TUI, подписки, VLESS Reality, SSH мимо VPN"
+    license: MIT
+    directory: Casks
+    repository:
+      owner: pnnnx
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    # Без токена (секрет не задан) релиз всё равно выходит, просто без обновления tap
+    skip_upload: '{{ if index .Env "HOMEBREW_TAP_GITHUB_TOKEN" }}false{{ else }}true{{ end }}'
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/vpn"]
+          end
+
 checksum:
   name_template: checksums.txt
 
