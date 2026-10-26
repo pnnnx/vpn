@@ -1,0 +1,35 @@
+version: 2
+project_name: vpn
+
+before:
+  hooks:
+    - go test ./...
+
+builds:
+  - binary: vpn
+    env: [CGO_ENABLED=0]
+    goos: [darwin, linux]
+    goarch: [arm64, amd64]
+    flags: [-trimpath]
+    ldflags: ["-s -w -X main.version={{ .Version }}"]
+
+archives:
+  - formats: [tar.gz]
+    # Без версии в имени — чтобы работала ссылка releases/latest/download/vpn_darwin_arm64.tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    files: [README.md, README.en.md, LICENSE, CHANGELOG.md]
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  groups:
+    - title: Новое
+      regexp: '^feat'
+      order: 0
+    - title: Исправления
+      regexp: '^fix'
+      order: 1
+  filters:
+    exclude: ['^docs', '^test', '^ci', '^chore']

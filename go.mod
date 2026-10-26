@@ -1,4 +1,4 @@
-module vpn
+module github.com/pnnnx/vpn
 
 go 1.24.7
 
