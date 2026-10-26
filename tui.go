@@ -101,12 +101,28 @@ func runTUI(st *State) error {
 		return err
 	}
 	if fm, ok := final.(*model); ok && fm.running {
-		fmt.Println("VPN продолжает работать в фоне. Выключить: vpn off")
+		fmt.Println(L("VPN продолжает работать в фоне. Выключить: vpn off", "The VPN keeps running in the background. Stop it with: vpn off"))
 	}
 	return nil
 }
 
-func (m *model) Init() tea.Cmd { return tea.Batch(tick(), checkStatus(m.st)) }
+func (m *model) Init() tea.Cmd {
+	cmds := []tea.Cmd{tick(), checkStatus(m.st)}
+	if subUpdateDue(m.st) && m.scr == scList {
+		cmds = append(cmds, m.start(L("Обновляю подписку", "Updating subscription"), opAutoUpdate(m.copyState())))
+	}
+	return tea.Batch(cmds...)
+}
+
+func opAutoUpdate(st *State) tea.Cmd {
+	return func() tea.Msg {
+		msg, err := autoUpdateSub(st)
+		if err != nil {
+			return opMsg{err: err}
+		}
+		return opMsg{text: msg, st: st}
+	}
+}
 
 func tick() tea.Cmd {
 	return tea.Tick(100*time.Millisecond, func(time.Time) tea.Msg { return tickMsg{} })
@@ -174,15 +190,15 @@ func opOn(st *State) tea.Cmd {
 			return opMsg{err: err}
 		}
 		p, _ := st.Current()
-		return opMsg{text: "Включено: " + p.Name, st: st, keepPings: true}
+		return opMsg{text: L("Включено: ", "Connected: ") + p.Name, st: st, keepPings: true}
 	}
 }
 
 func opOff(st *State) tea.Cmd {
 	return func() tea.Msg {
-		text := "Выключено"
+		text := L("Выключено", "Disconnected")
 		if err := vpnOff(st); err != nil {
-			text += " (предупреждение: " + err.Error() + ")"
+			text += L(" (предупреждение: ", " (warning: ") + err.Error() + ")"
 		}
 		return opMsg{text: text, st: st, keepPings: true}
 	}
@@ -194,9 +210,9 @@ func opUpdate(st *State) tea.Cmd {
 		if err != nil {
 			return opMsg{err: err}
 		}
-		t := fmt.Sprintf("Подписка обновлена: %d серверов", n)
+		t := fmt.Sprintf(L("Подписка обновлена: %d серверов", "Subscription updated: %d servers"), n)
 		if len(skipped) > 0 {
-			t += fmt.Sprintf(", пропущено %d", len(skipped))
+			t += fmt.Sprintf(L(", пропущено %d", ", %d skipped"), len(skipped))
 		}
 		st.Save()
 		return opMsg{text: t, st: st}
@@ -253,7 +269,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					alive++
 				}
 			}
-			m.setMsg(fmt.Sprintf("Отвечают %d из %d · b — перейти к самому быстрому", alive, len(msg.res)), false)
+			m.setMsg(fmt.Sprintf(L("Отвечают %d из %d · b — перейти к самому быстрому", "%d of %d responding · b — jump to the fastest"), alive, len(msg.res)), false)
 		}
 	case tea.KeyMsg:
 		switch m.scr {
@@ -285,7 +301,7 @@ func (m *model) applyStatus(msg statusMsg) {
 		}
 		if msg.st.Selected != m.st.Selected && msg.st.Selected >= 0 && m.running {
 			if p, ok := msg.st.Current(); ok {
-				m.setMsg("Сервер переключён: "+p.Name, false)
+				m.setMsg(L("Сервер переключён: ", "Server switched: ")+p.Name, false)
 			}
 		}
 		m.st = msg.st
@@ -340,16 +356,16 @@ func (m *model) updateInput(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			m.st.Direct = append(m.st.Direct, strings.Fields(v)...)
 			m.dirCursor = len(m.st.Direct) - 1
-			return m, m.saveDirect("Исключение добавлено")
+			return m, m.saveDirect(L("Исключение добавлено", "Exclusion added"))
 		}
 		if !strings.HasPrefix(v, "http") {
-			m.setMsg("Нужна ссылка вида https://…", true)
+			m.setMsg(L("Нужна ссылка вида https://…", "Expected a URL like https://…"), true)
 			return m, nil
 		}
 		m.scr = scList
 		m.st.SubURL = v
 		m.st.Save()
-		return m, m.start("Скачиваю подписку", opUpdate(m.copyState()))
+		return m, m.start(L("Скачиваю подписку", "Downloading subscription"), opUpdate(m.copyState()))
 	case tea.KeyBackspace:
 		if r := []rune(m.inputBuf); len(r) > 0 {
 			m.inputBuf = string(r[:len(r)-1])
@@ -367,7 +383,7 @@ func (m *model) updateInput(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *model) saveDirect(text string) tea.Cmd {
 	m.st.Save()
 	if m.running {
-		return m.start("Применяю исключения", opOn(m.copyState()))
+		return m.start(L("Применяю исключения", "Applying exclusions"), opOn(m.copyState()))
 	}
 	m.setMsg(text, false)
 	return nil
@@ -397,7 +413,7 @@ func (m *model) updateDirect(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		i := m.dirCursor
 		m.st.Direct = append(m.st.Direct[:i:i], m.st.Direct[i+1:]...)
 		m.clampCursor()
-		return m, m.saveDirect("Исключение удалено")
+		return m, m.saveDirect(L("Исключение удалено", "Exclusion removed"))
 	}
 	return m, nil
 }
@@ -405,7 +421,7 @@ func (m *model) updateDirect(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *model) loadLog(toEnd bool) {
 	var lines []string
 	if b, err := os.ReadFile(watchLogPath()); err == nil && len(b) > 0 {
-		lines = append(lines, "── сторож (vpn watch) ──")
+		lines = append(lines, L("── сторож (vpn watch) ──", "── watcher (vpn watch) ──"))
 		lines = append(lines, strings.Split(lastLines(string(b), 15), "\n")...)
 		lines = append(lines, "")
 	}
@@ -413,7 +429,7 @@ func (m *model) loadLog(toEnd bool) {
 	if l := tailLog(300); l != "" {
 		lines = append(lines, strings.Split(l, "\n")...)
 	} else {
-		lines = append(lines, "(лог пуст — VPN ещё не включали)")
+		lines = append(lines, L("(лог пуст — VPN ещё не включали)", "(log is empty — the VPN hasn't been started yet)"))
 	}
 	follow := toEnd || m.logOffset >= max(len(m.logLines)-m.logRows(), 0)
 	m.logLines = lines
@@ -472,27 +488,27 @@ func (m *model) updateKeys(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m.st.Selected = m.cursor
 		m.st.Save()
-		return m, m.start("Подключаюсь", opOn(m.copyState()))
+		return m, m.start(L("Подключаюсь", "Connecting"), opOn(m.copyState()))
 	case " ", "o":
 		if m.running {
-			return m, m.start("Выключаю", opOff(m.copyState()))
+			return m, m.start(L("Выключаю", "Disconnecting"), opOff(m.copyState()))
 		}
 		if _, ok := m.st.Current(); !ok && n > 0 {
 			m.st.Selected = m.cursor
 			m.st.Save()
 		}
-		return m, m.start("Подключаюсь", opOn(m.copyState()))
+		return m, m.start(L("Подключаюсь", "Connecting"), opOn(m.copyState()))
 	case "p":
 		if n > 0 {
-			return m, m.start("TCP-пинг", opPing(m.copyState(), false))
+			return m, m.start(L("TCP-пинг", "TCP ping"), opPing(m.copyState(), false))
 		}
 	case "P":
 		if n > 0 {
-			return m, m.start("Реальный пинг через каждый сервер", opPing(m.copyState(), true))
+			return m, m.start(L("Реальный пинг через каждый сервер", "Real ping through every server"), opPing(m.copyState(), true))
 		}
 	case "b":
 		if m.pings == nil {
-			m.setMsg("Сначала пинг: p или P", true)
+			m.setMsg(L("Сначала пинг: p или P", "Ping first: p or P"), true)
 			return m, nil
 		}
 		best := -1
@@ -503,14 +519,14 @@ func (m *model) updateKeys(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		if best >= 0 {
 			m.cursor = best
-			m.setMsg("Самый быстрый — Enter, чтобы подключиться", false)
+			m.setMsg(L("Самый быстрый — Enter, чтобы подключиться", "Fastest server — press Enter to connect"), false)
 		}
 	case "u":
 		if m.st.SubURL == "" {
 			m.openInput("sub", "")
 			return m, nil
 		}
-		return m, m.start("Обновляю подписку", opUpdate(m.copyState()))
+		return m, m.start(L("Обновляю подписку", "Updating subscription"), opUpdate(m.copyState()))
 	case "s":
 		m.openInput("sub", m.st.SubURL)
 	case "m":
@@ -521,9 +537,9 @@ func (m *model) updateKeys(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m.st.Save()
 		if m.running {
-			return m, m.start("Применяю режим", opOn(m.copyState()))
+			return m, m.start(L("Применяю режим", "Applying mode"), opOn(m.copyState()))
 		}
-		m.setMsg("Режим: "+m.st.Mode, false)
+		m.setMsg(L("Режим: ", "Mode: ")+m.st.Mode, false)
 	case "l":
 		m.scr = scLog
 		m.loadLog(true)
@@ -560,24 +576,24 @@ func (m *model) View() string {
 }
 
 func (m *model) header(w int) string {
-	status := stOff.Render("○ ВЫКЛ")
+	status := stOff.Render(L("○ ВЫКЛ", "○ OFF"))
 	if m.running {
-		status = stOn.Render("● ВКЛ")
+		status = stOn.Render(L("● ВКЛ", "● ON"))
 	}
-	cur := "сервер не выбран"
+	cur := L("сервер не выбран", "no server selected")
 	if p, ok := m.st.Current(); ok {
 		cur = p.Name
 	}
-	right := "режим " + m.st.Mode
+	right := L("режим ", "mode ") + m.st.Mode
 	if autostartEnabled() {
-		right += " · автозапуск"
+		right += L(" · автозапуск", " · autostart")
 	}
 	line1 := fmt.Sprintf(" %s  %s  %s", status, stTitle.Render(trunc(cur, w-36)), stDim.Render(right))
 	var info string
 	if m.running && m.statsOK {
-		info = fmt.Sprintf(" ↑ %s  ↓ %s  · за сессию %s", fmtRate(m.speedUp), fmtRate(m.speedDn), fmtSize(m.sessUp+m.sessDn))
+		info = fmt.Sprintf(L(" ↑ %s  ↓ %s  · за сессию %s", " ↑ %s  ↓ %s  · session %s"), fmtRate(m.speedUp), fmtRate(m.speedDn), fmtSize(m.sessUp+m.sessDn))
 	} else {
-		info = fmt.Sprintf(" SOCKS :%d · HTTP :%d · SSH напрямую", m.st.SocksPort, m.st.HTTPPort)
+		info = fmt.Sprintf(L(" SOCKS :%d · HTTP :%d · SSH напрямую", " SOCKS :%d · HTTP :%d · SSH direct"), m.st.SocksPort, m.st.HTTPPort)
 	}
 	if l := subLine(m.st); l != "" {
 		info += " · " + l
@@ -587,13 +603,13 @@ func (m *model) header(w int) string {
 
 func (m *model) viewInput(b *strings.Builder, w int) {
 	if m.inputFor == "direct" {
-		b.WriteString(" Домен, IP или подсеть, которые пойдут мимо VPN (можно несколько через пробел):\n")
-		b.WriteString(stDim.Render(" например: myserver.com  203.0.113.7  10.8.0.0/24") + "\n\n")
+		b.WriteString(L(" Домен, IP или подсеть, которые пойдут мимо VPN (можно несколько через пробел):\n", " Domain, IP or subnet to bypass the VPN (several separated by spaces):\n"))
+		b.WriteString(stDim.Render(L(" например: myserver.com  203.0.113.7  10.8.0.0/24", " e.g. myserver.com  203.0.113.7  10.8.0.0/24")) + "\n\n")
 	} else {
-		b.WriteString(" Вставьте ссылку на подписку от хостера (https://…) и нажмите Enter:\n\n")
+		b.WriteString(L(" Вставьте ссылку на подписку от хостера (https://…) и нажмите Enter:\n\n", " Paste your subscription URL (https://…) and press Enter:\n\n"))
 	}
 	b.WriteString(" > " + trunc(m.inputBuf, w-5) + "█\n\n")
-	b.WriteString(stDim.Render(" Enter — сохранить · Ctrl+U — очистить · Esc — отмена") + "\n")
+	b.WriteString(stDim.Render(L(" Enter — сохранить · Ctrl+U — очистить · Esc — отмена", " Enter — save · Ctrl+U — clear · Esc — cancel")) + "\n")
 }
 
 func (m *model) viewList(b *strings.Builder, w int) {
@@ -606,7 +622,7 @@ func (m *model) viewList(b *strings.Builder, w int) {
 		m.offset = m.cursor - rows + 1
 	}
 	if len(all) == 0 {
-		b.WriteString(" Серверов нет. s — задать подписку.\n")
+		b.WriteString(L(" Серверов нет. s — задать подписку.\n", " No servers. Press s to set a subscription.\n"))
 	}
 	for i := m.offset; i < len(all) && i < m.offset+rows; i++ {
 		p := all[i]
@@ -627,10 +643,10 @@ func (m *model) viewList(b *strings.Builder, w int) {
 		b.WriteString(row + " " + delay + "\n")
 	}
 	if len(all) > rows {
-		b.WriteString(stDim.Render(fmt.Sprintf(" … %d–%d из %d", m.offset+1, min(m.offset+rows, len(all)), len(all))) + "\n")
+		b.WriteString(stDim.Render(fmt.Sprintf(L(" … %d–%d из %d", " … %d–%d of %d"), m.offset+1, min(m.offset+rows, len(all)), len(all))) + "\n")
 	}
-	b.WriteString("\n" + keys(w, "Enter", "подключить", "Space", "вкл/выкл", "p/P", "пинг", "b", "лучший",
-		"u", "обновить", "m", "режим", "d", "исключения", "i", "инфо", "l", "лог", "q", "выход") + "\n")
+	b.WriteString("\n" + keys(w, "Enter", L("подключить", "connect"), "Space", L("вкл/выкл", "on/off"), "p/P", L("пинг", "ping"), "b", L("лучший", "fastest"),
+		"u", L("обновить", "update"), "m", L("режим", "mode"), "d", L("исключения", "exclusions"), "i", L("инфо", "info"), "l", L("лог", "log"), "q", L("выход", "quit")) + "\n")
 }
 
 func (m *model) viewLog(b *strings.Builder, w int) {
@@ -642,13 +658,13 @@ func (m *model) viewLog(b *strings.Builder, w int) {
 	for i := end - m.logOffset; i < rows; i++ {
 		b.WriteString("\n")
 	}
-	b.WriteString(keys(w, "↑↓", "листать", "PgUp/PgDn", "страница", "G", "в конец", "Esc", "назад") + "\n")
+	b.WriteString(keys(w, "↑↓", L("листать", "scroll"), "PgUp/PgDn", L("страница", "page"), "G", L("в конец", "end"), "Esc", L("назад", "back")) + "\n")
 }
 
 func (m *model) viewDirect(b *strings.Builder, w int) {
-	b.WriteString(stTitle.Render(" Мимо VPN всегда идут:") + stDim.Render(" SSH (порт 22), локальные сети, localhost") + "\n\n")
+	b.WriteString(stTitle.Render(L(" Мимо VPN всегда идут:", " Always bypassing the VPN:")) + stDim.Render(L(" SSH (порт 22), локальные сети, localhost", " SSH (port 22), local networks, localhost")) + "\n\n")
 	if len(m.st.Direct) == 0 {
-		b.WriteString(stDim.Render(" Своих исключений нет. a — добавить.") + "\n")
+		b.WriteString(stDim.Render(L(" Своих исключений нет. a — добавить.", " No custom exclusions. Press a to add.")) + "\n")
 	}
 	for i, d := range m.st.Direct {
 		row := fmt.Sprintf("  %-*s", w-4, trunc(d, w-4))
@@ -657,7 +673,7 @@ func (m *model) viewDirect(b *strings.Builder, w int) {
 		}
 		b.WriteString(row + "\n")
 	}
-	b.WriteString("\n" + keys(w, "a", "добавить", "x", "удалить", "Esc", "назад") + "\n")
+	b.WriteString("\n" + keys(w, "a", L("добавить", "add"), "x", L("удалить", "remove"), "Esc", L("назад", "back")) + "\n")
 }
 
 func (m *model) viewInfo(b *strings.Builder, w int) {
@@ -672,30 +688,30 @@ func (m *model) viewInfo(b *strings.Builder, w int) {
 		}
 	}
 	b.WriteString(stTitle.Render(" "+trunc(p.Name, w-2)) + "\n\n")
-	row("Протокол", p.Summary())
-	row("Адрес", p.Endpoint())
-	row("Транспорт", p.Network)
-	row("Путь", p.Path)
+	row(L("Протокол", "Protocol"), p.Summary())
+	row(L("Адрес", "Address"), p.Endpoint())
+	row(L("Транспорт", "Transport"), p.Network)
+	row(L("Путь", "Path"), p.Path)
 	row("gRPC service", p.ServiceName)
 	row("Host", p.Host)
-	row("Режим", p.Mode)
-	row("Безопасность", p.Security)
+	row(L("Режим", "Mode"), p.Mode)
+	row(L("Безопасность", "Security"), p.Security)
 	row("SNI", p.SNI)
 	row("Fingerprint", p.Fingerprint)
 	row("Flow", p.Flow)
 	row("UUID", mask(p.ID))
-	row("Пароль", mask(p.Password))
+	row(L("Пароль", "Password"), mask(p.Password))
 	row("Public key", mask(p.PublicKey))
 	row("Short ID", mask(p.ShortID))
 	if m.pings != nil && m.cursor < len(m.pings) {
 		r := m.pings[m.cursor]
 		if r.Delay < 0 && r.Err != nil {
-			row("Пинг", "не отвечает: "+shortErr(r.Err))
+			row(L("Пинг", "Ping"), L("не отвечает: ", "not responding: ")+shortErr(r.Err))
 		} else {
-			row("Пинг", fmtDelay(r))
+			row(L("Пинг", "Ping"), fmtDelay(r))
 		}
 	}
-	b.WriteString("\n" + keys(w, "Esc", "назад") + "\n")
+	b.WriteString("\n" + keys(w, "Esc", L("назад", "back")) + "\n")
 }
 
 // mask скрывает секреты: в TUI их могут увидеть через плечо или на скриншоте.
@@ -759,18 +775,18 @@ func colorDelay(r PingResult) string {
 	}
 }
 
-func fmtRate(bps float64) string { return fmtSize(int64(bps)) + "/с" }
+func fmtRate(bps float64) string { return fmtSize(int64(bps)) + L("/с", "/s") }
 
 func fmtSize(n int64) string {
 	switch {
 	case n >= 1<<30:
-		return fmt.Sprintf("%.1f ГБ", float64(n)/(1<<30))
+		return fmt.Sprintf(L("%.1f ГБ", "%.1f GB"), float64(n)/(1<<30))
 	case n >= 1<<20:
-		return fmt.Sprintf("%.1f МБ", float64(n)/(1<<20))
+		return fmt.Sprintf(L("%.1f МБ", "%.1f MB"), float64(n)/(1<<20))
 	case n >= 1<<10:
-		return fmt.Sprintf("%.0f КБ", float64(n)/(1<<10))
+		return fmt.Sprintf(L("%.0f КБ", "%.0f KB"), float64(n)/(1<<10))
 	}
-	return fmt.Sprintf("%d Б", n)
+	return fmt.Sprintf(L("%d Б", "%d B"), n)
 }
 
 func trunc(s string, n int) string {

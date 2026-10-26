@@ -24,6 +24,7 @@ const help = `vpn — консольный клиент Xray для macOS
 
   vpn sub <url>          задать подписку и обновить
   vpn update             обновить подписку
+  vpn autoupdate on|off  обновлять подписку раз в сутки (по умолчанию да)
   vpn add <ссылка>       добавить сервер вручную
   vpn list               список серверов
   vpn use N              выбрать сервер
@@ -34,6 +35,7 @@ const help = `vpn — консольный клиент Xray для macOS
   vpn mode global|ru     всё через VPN / российское напрямую
   vpn direct add|rm|list <домен|IP|CIDR>   исключения (идут мимо VPN)
   vpn sysproxy on|off    трогать ли системный прокси macOS
+  vpn tun on|off         экспериментальный TUN-режим для всех программ (нужен sudo)
   vpn env [--off]        прокси для терминала: eval "$(vpn env)"
 
   vpn autostart on|off   сторож в фоне: поднимает VPN после перезагрузки,
@@ -43,9 +45,46 @@ const help = `vpn — консольный клиент Xray для macOS
   vpn setup              скачать/обновить ядро Xray
   vpn config             показать конфиг Xray
   vpn log                последние строки лога
+  vpn lang ru|en         язык интерфейса
   vpn version
 
 SSH (порт 22) и локальные сети всегда идут напрямую.`
+
+const helpEN = `vpn — a terminal Xray client for macOS
+
+  vpn                    open the TUI
+  vpn on [N]             connect (server N, or the current one)
+  vpn off                disconnect
+  vpn toggle             toggle
+  vpn status             show status
+
+  vpn sub <url>          set the subscription and update it
+  vpn update             update the subscription
+  vpn autoupdate on|off  update the subscription once a day (default: on)
+  vpn add <link>         add a server manually
+  vpn list               list servers
+  vpn use N              select a server
+  vpn ping [--real]      ping all servers
+  vpn best               pick the fastest (real ping)
+  vpn test               check the current connection
+
+  vpn mode global|ru     everything via VPN / Russian sites direct
+  vpn direct add|rm|list <domain|IP|CIDR>   exclusions (bypass the VPN)
+  vpn sysproxy on|off    whether to manage the macOS system proxy
+  vpn tun on|off         experimental TUN mode for all apps (needs sudo)
+  vpn env [--off]        proxy for the terminal: eval "$(vpn env)"
+
+  vpn autostart on|off   background watcher: restores the VPN after reboot,
+                         restarts xray, switches server when it fails
+  vpn autoswitch on|off  whether to switch server when the current one fails
+
+  vpn setup              download/update the Xray core
+  vpn config             print the Xray config
+  vpn log                show recent log lines
+  vpn lang ru|en         interface language
+  vpn version
+
+SSH (port 22) and local networks always go direct.`
 
 func say(s string) { fmt.Println(s) }
 
@@ -64,6 +103,7 @@ func main() {
 	if err != nil {
 		die(fmt.Errorf("не читается %s: %w", statePath(), err))
 	}
+	langPref = st.Lang
 	if len(os.Args) < 2 {
 		if isTerminal() {
 			if err := runTUI(st); err != nil {
@@ -89,7 +129,7 @@ func main() {
 
 	switch cmd {
 	case "help", "-h", "--help":
-		say(help)
+		say(L(help, helpEN))
 	case "version", "--version":
 		say("vpn " + version)
 	case "setup":
@@ -154,13 +194,18 @@ func main() {
 		cmdOn(st)
 	case "off", "disconnect", "down":
 		if err := vpnOff(st); err != nil {
-			say("Предупреждение: " + err.Error())
+			if running, _ := isRunning(); running {
+				die(err)
+			}
+			say(L("Предупреждение: ", "Warning: ") + err.Error())
 		}
-		say("VPN выключен.")
+		say(L("VPN выключен.", "VPN is off."))
 	case "toggle":
 		if running, _ := isRunning(); running {
-			vpnOff(st)
-			say("VPN выключен.")
+			if err := vpnOff(st); err != nil {
+				die(err)
+			}
+			say(L("VPN выключен.", "VPN is off."))
 		} else {
 			cmdOn(st)
 		}
@@ -191,7 +236,7 @@ func main() {
 			die(fmt.Errorf("sysproxy on|off"))
 		}
 		save()
-		say("Готово.")
+		say(L("Готово.", "Done."))
 	case "env":
 		if len(args) > 0 && args[0] == "--off" {
 			say("unset http_proxy https_proxy all_proxy no_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY")
@@ -216,6 +261,47 @@ func main() {
 		if b, err := os.ReadFile(watchLogPath()); err == nil {
 			say("--- watch ---")
 			say(lastLines(string(b), 15))
+		}
+	case "autoupdate":
+		switch arg(0, "on | off") {
+		case "on":
+			st.NoSubAutoUpdate = false
+		case "off":
+			st.NoSubAutoUpdate = true
+		default:
+			die(fmt.Errorf("vpn autoupdate on|off"))
+		}
+		save()
+		say(L("Готово.", "Done."))
+	case "lang":
+		l := arg(0, "ru | en")
+		if l != "ru" && l != "en" && l != "auto" {
+			die(fmt.Errorf("vpn lang ru|en|auto"))
+		}
+		if l == "auto" {
+			l = ""
+		}
+		st.Lang = l
+		save()
+		say(map[string]string{"ru": "Язык: русский", "en": "Language: English", "": "Language: auto / Язык: как в системе"}[l])
+	case "tun":
+		switch arg(0, "on | off") {
+		case "on":
+			st.TUN = true
+			save()
+			say(L("TUN-режим включён (экспериментально): через VPN пойдут все программы, а не только те, что уважают системный прокси.",
+				"TUN mode enabled (experimental): all apps go through the VPN, not only those that respect the system proxy."))
+			say(L("Нужен root: включай через  sudo vpn on  и выключай через  sudo vpn off.",
+				"Needs root: connect with  sudo vpn on  and disconnect with  sudo vpn off."))
+			say(L("SSH, локальные сети и исключения по-прежнему идут напрямую. IPv6 в TUN не заворачивается.",
+				"SSH, local networks and exclusions still go direct. IPv6 is not routed through TUN."))
+		case "off":
+			st.TUN = false
+			save()
+			say(L("TUN-режим выключен. Если VPN сейчас включён в TUN — sudo vpn on, чтобы переключиться на прокси.",
+				"TUN mode disabled. If the VPN is running in TUN — run sudo vpn on to switch to proxy mode."))
+		default:
+			die(fmt.Errorf("vpn tun on|off"))
 		}
 	case "watch":
 		runWatch()
@@ -245,7 +331,7 @@ func main() {
 			die(fmt.Errorf("vpn autoswitch on|off"))
 		}
 		save()
-		say("Готово.")
+		say(L("Готово.", "Done."))
 	default:
 		die(fmt.Errorf("неизвестная команда %q, см. vpn help", cmd))
 	}
@@ -272,7 +358,7 @@ func cmdUpdate(st *State) {
 	if err != nil {
 		die(err)
 	}
-	say(fmt.Sprintf("Подписка обновлена: %d серверов.", n))
+	say(fmt.Sprintf(L("Подписка обновлена: %d серверов.", "Subscription updated: %d servers."), n))
 	if len(skipped) > 0 {
 		say(fmt.Sprintf("Пропущено %d ссылок: %s", len(skipped), skipped[0]))
 	}
@@ -283,8 +369,8 @@ func cmdOn(st *State) {
 		die(err)
 	}
 	p, _ := st.Current()
-	say(fmt.Sprintf("VPN включён: %s", p.Name))
-	say(fmt.Sprintf("SOCKS 127.0.0.1:%d · HTTP 127.0.0.1:%d · SSH идёт напрямую", st.SocksPort, st.HTTPPort))
+	say(fmt.Sprintf(L("VPN включён: %s", "VPN is on: %s"), p.Name))
+	say(fmt.Sprintf(L("SOCKS 127.0.0.1:%d · HTTP 127.0.0.1:%d · SSH идёт напрямую", "SOCKS 127.0.0.1:%d · HTTP 127.0.0.1:%d · SSH goes direct"), st.SocksPort, st.HTTPPort))
 }
 
 func restartIfRunning(st *State) {
@@ -311,7 +397,7 @@ func doPing(st *State, real bool) []PingResult {
 func printList(st *State, res []PingResult) {
 	all := st.All()
 	if len(all) == 0 {
-		say("Серверов нет. Добавьте подписку: vpn sub <url>")
+		say(L("Серверов нет. Добавьте подписку: vpn sub <url>", "No servers. Add a subscription: vpn sub <url>"))
 		return
 	}
 	order := make([]int, len(all))
@@ -352,7 +438,7 @@ func printFailures(st *State, res []PingResult) {
 			continue
 		}
 		if first {
-			say("\nНе ответили:")
+			say(L("\nНе ответили:", "\nNot responding:"))
 			first = false
 		}
 		say(fmt.Sprintf("  %3d  %s — %s", i+1, all[i].Name, shortErr(r.Err)))
@@ -364,20 +450,20 @@ func shortErr(err error) string {
 	s := err.Error()
 	switch {
 	case strings.Contains(s, "Client.Timeout"), strings.Contains(s, "timeout"), strings.Contains(s, "deadline"):
-		return "таймаут"
+		return L("таймаут", "timeout")
 	case strings.Contains(s, "connection refused"):
-		return "соединение отклонено"
+		return L("соединение отклонено", "connection refused")
 	case strings.Contains(s, "EOF"), strings.Contains(s, "reset"):
-		return "сервер оборвал соединение"
+		return L("сервер оборвал соединение", "server closed the connection")
 	case strings.Contains(s, "no such host"):
-		return "домен не найден"
+		return L("домен не найден", "host not found")
 	}
 	return short(s)
 }
 
 func fmtBytes(n int64) string {
 	const gb = 1 << 30
-	return fmt.Sprintf("%.1f ГБ", float64(n)/gb)
+	return fmt.Sprintf(L("%.1f ГБ", "%.1f GB"), float64(n)/gb)
 }
 
 func subLine(st *State) string {
@@ -391,14 +477,14 @@ func subLine(st *State) string {
 	}
 	used := si.Upload + si.Download
 	if si.Total > 0 {
-		parts = append(parts, fmt.Sprintf("трафик %s из %s", fmtBytes(used), fmtBytes(si.Total)))
+		parts = append(parts, fmt.Sprintf(L("трафик %s из %s", "traffic %s of %s"), fmtBytes(used), fmtBytes(si.Total)))
 	} else if used > 0 {
-		parts = append(parts, "трафик "+fmtBytes(used))
+		parts = append(parts, L("трафик ", "traffic ")+fmtBytes(used))
 	}
 	if si.Expire > 0 {
 		t := time.Unix(si.Expire, 0)
 		days := int(time.Until(t).Hours() / 24)
-		parts = append(parts, fmt.Sprintf("до %s (%d дн.)", t.Format("02.01.2006"), days))
+		parts = append(parts, fmt.Sprintf(L("до %s (%d дн.)", "until %s (%d days)"), t.Format("02.01.2006"), days))
 	}
 	return strings.Join(parts, " · ")
 }
@@ -406,33 +492,40 @@ func subLine(st *State) string {
 func printStatus(st *State) {
 	running, pid := isRunning()
 	if running {
-		say(fmt.Sprintf("● VPN включён (xray pid %d)", pid))
+		say(fmt.Sprintf(L("● VPN включён (xray pid %d)", "● VPN is on (xray pid %d)"), pid))
 	} else {
-		say("○ VPN выключен")
+		say(L("○ VPN выключен", "○ VPN is off"))
 	}
 	if p, ok := st.Current(); ok {
-		say(fmt.Sprintf("Сервер:   %s (%s, %s)", p.Name, p.Summary(), p.Endpoint()))
+		say(fmt.Sprintf(L("Сервер:   %s (%s, %s)", "Server:   %s (%s, %s)"), p.Name, p.Summary(), p.Endpoint()))
 	} else {
-		say("Сервер:   не выбран")
+		say(L("Сервер:   не выбран", "Server:   not selected"))
 	}
-	say(fmt.Sprintf("Порты:    SOCKS %d · HTTP %d", st.SocksPort, st.HTTPPort))
-	say("Режим:    " + st.Mode)
-	sp := systemProxyStatus()
+	say(fmt.Sprintf(L("Порты:    SOCKS %d · HTTP %d", "Ports:    SOCKS %d · HTTP %d"), st.SocksPort, st.HTTPPort))
+	mode := st.Mode
+	if st.TUN {
+		mode += " · TUN"
+	}
+	say(L("Режим:    ", "Mode:     ") + mode)
+	sp := map[string]string{"включён": L("включён", "on"), "выключен": L("выключен", "off")}[systemProxyStatus()]
+	if sp == "" {
+		sp = systemProxyStatus()
+	}
 	if st.NoSysProxy {
 		sp += " (vpn его не трогает)"
 	}
-	say("Сис. прокси: " + sp)
+	say(L("Сис. прокси: ", "System proxy: ") + sp)
 	if l := subLine(st); l != "" {
-		say("Подписка: " + l)
+		say(L("Подписка: ", "Subscription: ") + l)
 	}
-	auto := "выключен (vpn autostart on)"
+	auto := L("выключен (vpn autostart on)", "off (vpn autostart on)")
 	if autostartEnabled() {
-		auto = "включён"
+		auto = L("включён", "on")
 		if !st.NoAutoSwitch {
-			auto += ", с автопереключением"
+			auto += L(", с автопереключением", ", with failover")
 		}
 	}
-	say("Автозапуск: " + auto)
+	say(L("Автозапуск: ", "Autostart: ") + auto)
 	if running && systemProxyStatus() == "выключен" && !st.NoSysProxy {
 		say("Внимание: xray работает, но системный прокси выключен — vpn on")
 	}
@@ -450,13 +543,13 @@ func cmdTest(st *State) {
 	if err != nil {
 		die(fmt.Errorf("через VPN не открывается %s: %w", testURL, err))
 	}
-	say(fmt.Sprintf("Задержка: %d мс", d.Milliseconds()))
+	say(fmt.Sprintf(L("Задержка: %d мс", "Latency: %d ms"), d.Milliseconds()))
 	pu, _ := url.Parse(proxy)
 	cl := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(pu)}, Timeout: 8 * time.Second}
 	if resp, err := cl.Get("https://api.ipify.org"); err == nil {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 100))
 		resp.Body.Close()
-		say("Внешний IP: " + strings.TrimSpace(string(b)))
+		say(L("Внешний IP: ", "External IP: ") + strings.TrimSpace(string(b)))
 	}
 }
 

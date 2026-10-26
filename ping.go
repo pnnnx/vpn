@@ -163,5 +163,5 @@ func fmtDelay(r PingResult) string {
 	if r.Delay == 0 {
 		return ""
 	}
-	return fmt.Sprintf("%d мс", r.Delay.Milliseconds())
+	return fmt.Sprintf(L("%d мс", "%d ms"), r.Delay.Milliseconds())
 }
